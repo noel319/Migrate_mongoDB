@@ -16,4 +16,7 @@ def start_migrate(sqlite_folder):
     pool.join()
     print("Migration completed for all files.")
 
+if __name__ == "__main__":
+    start_migrate(sqlite_folder)
+
 

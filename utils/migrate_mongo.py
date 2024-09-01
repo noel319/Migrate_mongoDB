@@ -48,5 +48,3 @@ def get_db_name(db_name):
     db_name = db_name.replace(' ', '_')
     db_name = db_name[:40]
     return db_name
-    
-    
