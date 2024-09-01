@@ -1,11 +1,19 @@
-from utils.migration import migrate_mongo
+from multiprocessing import Pool, cpu_count
+from utils.migrate_mongo import migrate_db
 import os
 
-sqlite_folder_path = '/db/'  
-mongo_uri = 'mongodb://localhost:27017/'  
-
-sqlite_files = [os.path.join(sqlite_folder_path, file) for file in os.listdir(sqlite_folder_path) if file.endswith('.db')]
+sqlite_folder = '/db/'  
+mongo_uri = 'mongodb://localhost:27017/'
 
 
-if __name__ == "__main__":
-    migrate_mongo(sqlite_folder_path, mongo_uri)
+def start_migrate(sqlite_folder):
+    sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
+    pool = Pool(processes=cpu_count())
+    
+    for file_path in sqlite_files:
+        pool.apply_async(migrate_db, (file_path))    
+    pool.close()
+    pool.join()
+    print("Migration completed for all files.")
+
+
