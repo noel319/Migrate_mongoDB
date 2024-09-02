@@ -1,12 +1,24 @@
-from  utils.ai_generation import generate_name
-from  utils.ai_generation import analyze
+from multiprocessing import Pool, cpu_count
+import os, re
+import sqlite3
+from utils.ai_generation import generate_name
 import pandas as pd
 from pymongo import MongoClient
-import sqlite3
-import os, re
+sqlite_folder = 'db/'  
+mongo_uri = 'mongodb://localhost:27017/'
 
-mongo_uri = 'mongodb://localhost:27017/'  
 
+def start_migrate(sqlite_folder):
+    sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
+    # pool = Pool(processes=cpu_count())
+    
+    for file_path in sqlite_files:
+        print(f"Queuing migration for {file_path}")
+        migrate_db(file_path)
+        # pool.apply_async(migrate_db, (file_path,))    
+    # pool.close()
+    # pool.join()
+    print("Migration completed for all files.")
 def migrate_db(file_path):
 
     ### Connect Sqlite DB and Get Table List
@@ -24,27 +36,22 @@ def migrate_db(file_path):
 
     for table in tables:
         collection = mongo_db[table[0]]
-        query = f"SELECT *FROM {table[0]} LIMIT 500"
+        query = f"SELECT *FROM {table[0]} LIMIT 2"
         df = pd.read_sql(query, conn)
         column_data = {}
         column_name = []
-        for column in df.columns:
-            column_data[column] = df[column].tolist()
+        for column in df.columns:            
+            column_data = df[column].tolist()
             column_name.append(generate_name(column_data))
-        
-        # Migrate mogoDB
-        print(column_name)
-        for chunk in pd.read_sql_query(f"SELECT *FROM {table[0]}", conn, chunksize=1000):
-            # Clean and prepare data if necessary
-            chunk.columns = column_name
-            # cleanned_data = analyze(chunk)
-            json_data = chunk.to_dict(orient = 'records')
-            collection.insert_many(json_data)   
+        print(f"column data: {column_name}")        
     conn.close()    
-    print(f"Completed processing for {file_path}")
 
 def get_db_name(db_name):
     db_name = re.sub(r'[^a-zA-Zа-яА-ЯіїІЇєЄ0-9]', '_', db_name)
     db_name = db_name.replace(' ', '_')
     db_name = db_name[:30]
     return db_name
+if __name__ == "__main__":
+    start_migrate(sqlite_folder)
+
+
