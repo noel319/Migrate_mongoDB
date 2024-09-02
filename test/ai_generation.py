@@ -8,20 +8,22 @@ OLLAMA_SERVER_URL = 'http://192.168.10.92:11434/api/generate'
 def regx(column_data):    
     column_name = ''
     flag = False
-    # patterns = {
-    #     'email': r'[\w\.-]+@[\w\.-]+',
-    #     'phone': r'\+?\d[\d\-\(\) ]{5,}\d',
-    #     'url': r'https?://(?:www\.)?\w+\.\w+',
-    #     'date': r'\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}',
-    #     'name': r'\b[AА][а-яА-ЯёЁ]+ [AА][а-яА-ЯёЁ]+\b' 
-    # }
-    # for name, pattern in patterns.items():
-    #     if re.search(pattern, column_data):
-    #         column_name = name
-    #         flag = True
+    patterns = {
+        'email': r'[\w\.-]+@[\w\.-]+',
+        'phone': r'\+?\d[\d\-\(\) ]{5,}\d',
+        'url': r'https?://(?:www\.)?\w+\.\w+',
+        'date': r'\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}',
+        'name': r'\b[AА][а-яА-ЯёЁ]+ [AА][а-яА-ЯёЁ]+\b' 
+    }
+    for name, pattern in patterns.items():
+        if re.search(pattern, column_data):
+            column_name = name
+            flag = True
     return flag, column_name
 
-def generate_name(column_data):   
+def generate_name(column_data):
+    column_data = ''.json(column_data)
+    name_patten = ''.json(general_names)
     flag, column_name = regx(column_data)
     if flag:
         return column_name
@@ -39,7 +41,7 @@ def generate_name(column_data):
         {column_data}
 
         ### General Names (pre-existing):
-        {general_names}
+        {name_patten}
 
         ### Output:
         Do not include descriptions or any additional text, only the column names.

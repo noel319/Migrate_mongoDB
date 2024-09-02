@@ -1,4 +1,4 @@
 pandas
 pymongo
-transformers
-torch
+
+
