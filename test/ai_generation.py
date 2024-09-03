@@ -4,7 +4,6 @@ from utils.config import general_names
 OLLAMA_SERVER_URL = 'http://192.168.10.92:11434/api/generate'
 
 # Pre make name by using regular expression
-
 def regx(column_data):    
     column_name = ''
     flag = False
@@ -12,13 +11,14 @@ def regx(column_data):
         'email': r'[\w\.-]+@[\w\.-]+',
         'phone': r'\+?\d[\d\-\(\) ]{5,}\d',
         'url': r'https?://(?:www\.)?\w+\.\w+',
-        'date': r'\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}',
-        'name': r'\b[AА][а-яА-ЯёЁ]+ [AА][а-яА-ЯёЁ]+\b' 
+        'full_name': r'\b[AА][а-яА-ЯёЁ]+ [AА][а-яА-ЯёЁ]+\b' 
     }
-    for name, pattern in patterns.items():
-        if re.search(pattern, column_data):
-            column_name = name
-            flag = True
+    for i in range(0,100):
+        for name, pattern in patterns.items():
+            if re.search(pattern, column_data):
+                column_name = name
+                flag = True
+                break
     return flag, column_name
 
 def generate_name(column_data):
