@@ -36,14 +36,12 @@ def migrate_db(file_path):
 
     for table in tables:
         collection = mongo_db[table[0]]
-        query = f"SELECT *FROM {table[0]} LIMIT 2"
+        query = f"SELECT *FROM {table[0]} LIMIT 200"
         df = pd.read_sql(query, conn)
-        column_data = {}
-        column_name = []
-        for column in df.columns:            
-            column_data = df[column].tolist()
-            column_name.append(generate_name(column_data))
-        print(f"column data: {column_name}")        
+        if table[0] == "main" or table[0] == "main_idx":
+            column_names = []
+            column_names = generate_name(df)
+            print(f"column data: {column_names}")        
     conn.close()    
 
 def get_db_name(db_name):
