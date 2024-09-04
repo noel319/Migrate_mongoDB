@@ -141,21 +141,20 @@ def analyze(chunk):
 
 def detect_outlier(column_data):
     prompt = f"""
-        You are model that identify incorrect data and formatting issues in a dataset.
-        The dataset consists of a single column.
-        Please analyze the data and provide the indices of rows that contain any of the following issues:
-        1. **Non-numeric Data**: If the expected data type is numeric but the value is not a number.
-        2. **Incorrect Date Formats or Invalid Dates**: If the expected format is a date but the value is not in the correct format or is an invalid date.
-        3. **Outlier Words**: If a word or value in the column is different from the majority of the values, 
-            which are expected to be meaningful or relevant in a specific context. 
-            For example, if most values are numbers or specific types of words, any word that seems out of place should be flagged.
-        4. if all data is correct return true.
-        ###The dataset :
-        {column_data}
-        ### Output:
-        Do not include descriptions or any additional text, only the index List.
-        Return only the number list of indices. 
-        """
+            I have a dataset with mixed data types including numbers, text, and other values. 
+            Your task is to find outliers and return only their indices. 
+
+            ### Dataset:
+            {column_data}
+
+            ### What to Identify:
+            1. Identify indices of values that stand out significantly from the rest of the data.
+            2. Consider numerical outliers, unusual text entries, or any data that seems contextually different.
+
+            ### Output:
+            - Do not include any description or text.
+            - Provide only the indices of the outliers from the dataset.
+            """
 
     payload = {
             'model' : 'llama3.1:70b',
