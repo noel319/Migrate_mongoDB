@@ -1,6 +1,7 @@
 import requests
 import re
 from utils.config import general_names
+from dateutil.parser import parse
 OLLAMA_SERVER_URL = 'http://192.168.10.92:11434/api/generate'
 
 # Pre make name by using regular expression
@@ -11,6 +12,12 @@ patterns = {
         'url': r'https?://(?:www\.)?\w+\.\w+',
         'full_name': r'\b[AА][а-яА-ЯёЁ]+ [AА][а-яА-ЯёЁ]+\b' 
     }
+date_patterns = [
+        r'\b\w{3} \d{1,2}, \d{4}\b', #Matches sep 20, 2002
+        r'\b\d{4}-\d{1,2}-\d{1,2}\b',  # Matches YYYY-MM-DD
+        r'\b\d{1,2}\.\d{1,2}\.\d{4}\b',  # Matches DD.MM.YYYY
+        r'\b\d{1,2}/\d{1,2}/\d{4}\b', #Matches DD/MM/YYYY
+    ]
 
 def detect_phone(column_data):
     if re.search(phone_pattern, str(column_data)):
@@ -35,7 +42,7 @@ def regx(column_data):
         column_name = 'null_column'
         print("welcome to here")
     else:
-        for i in range(0,5):
+        for i in range(0,50):
             for name, pattern in patterns.items():
                 if re.search(pattern, str(column_data[i])):
                     column_name = name
@@ -52,7 +59,7 @@ def generate_name(df):
     column_names = []
     global general_names
     for col in df.columns:
-        column_data = df[col].head().tolist()
+        column_data = df[col].tolist()
         # print(column_data)
         new_name = make_name(column_data)
         count = sum(new_name in item for item in column_names)        
@@ -102,5 +109,63 @@ def make_name(column_data):
             return res.raise_for_status()
     
 def analyze(chunk):
+    num_list = []
+    chunk.drop_duplicates(inplace = True)
+    combine_pattern = '|'.join(date_patterns)
+    for col in chunk.columns:
+        for row in chunk.index:
+            # Make Typecial Style IN Phone Number and Passport
+            flag, col_name = detect_phone(chunk.loc[row, col])
+            if flag and col_name == "Phone_number":
+                chunk.loc[row, col] = re.sub(r'[^\d]', '', str(chunk.loc[row, col]))
+            elif flag and col_name == "passport":
+                chunk.loc[col,row] = f"{str(chunk.loc[row, col])[:4]} No{str(chunk.loc[row, col])[4:]}"
+            # Make Typical Style In Date
+            matches = re.findall(combine_pattern, str(chunk.loc[row, col]))
+            value = str(chunk.loc[row, col])
+            try:
+                if matches:
+                    parse_date = parse(value)
+                    if parse_date.year and parse_date.month and parse_date.day:
+                        chunk.loc[row, col] = parse_date.strftime('%d.%m.%Y')
+                    elif parse_date.year and parse_date.month:
+                        chunk.loc[row, col] =  f'01.{parse_date.strftime("%m.%Y")}'
+                    elif parse_date.year:
+                        chunk.loc[row, col] =  f'01.01.{parse_date.strftime("%Y")}'
+            except(ValueError, TypeError, AttributeError):
+                print(ValueError)
+        column_data = chunk[col].tolist()
+        print(f"{column_data} : {detect_outlier(column_data)}")
+    
 
-    return
+
+def detect_outlier(column_data):
+    prompt = f"""
+        You are model that identify incorrect data and formatting issues in a dataset.
+        The dataset consists of a single column.
+        Please analyze the data and provide the indices of rows that contain any of the following issues:
+        1. **Non-numeric Data**: If the expected data type is numeric but the value is not a number.
+        2. **Incorrect Date Formats or Invalid Dates**: If the expected format is a date but the value is not in the correct format or is an invalid date.
+        3. **Outlier Words**: If a word or value in the column is different from the majority of the values, 
+            which are expected to be meaningful or relevant in a specific context. 
+            For example, if most values are numbers or specific types of words, any word that seems out of place should be flagged.
+        4. if all data is correct return true.
+        ###The dataset :
+        {column_data}
+        ### Output:
+        Do not include descriptions or any additional text, only the index List.
+        Return only the number list of indices. 
+        """
+
+    payload = {
+            'model' : 'llama3.1:70b',
+            'prompt' : prompt,
+            'stream' : False
+        }
+    res = requests.post(OLLAMA_SERVER_URL, json=payload)
+    if res.status_code == 200:
+        str = res.json()['response']
+        # str = str.split('\n')[0]
+        return str
+    else:
+        return res.raise_for_status()

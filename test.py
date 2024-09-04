@@ -1,7 +1,7 @@
 from multiprocessing import Pool, cpu_count
 import os, re
 import sqlite3
-from utils.ai_generation import generate_name
+from utils.ai_generation import generate_name, analyze
 import pandas as pd
 from pymongo import MongoClient
 sqlite_folder = 'db/'  
@@ -36,12 +36,12 @@ def migrate_db(file_path):
 
     for table in tables:
         collection = mongo_db[table[0]]
-        query = f"SELECT *FROM {table[0]} LIMIT 200"
+        query = f"SELECT * FROM {table[0]} LIMIT 20"
         df = pd.read_sql(query, conn)
         if table[0] == "main" or table[0] == "main_idx":
             column_names = []
-            column_names = generate_name(df)
-            print(f"column data: {column_names}")        
+            analyze(df)
+                    
     conn.close()    
 
 def get_db_name(db_name):
