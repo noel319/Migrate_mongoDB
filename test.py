@@ -1,7 +1,7 @@
 from multiprocessing import Pool, cpu_count
 import os, re
 import sqlite3
-from utils.ai_generation import generate_name
+from utils.test_generation import generate_name, analyze, col_type
 import pandas as pd
 from pymongo import MongoClient
 sqlite_folder = 'db/'  
@@ -20,7 +20,7 @@ def start_migrate(sqlite_folder):
     # pool.join()
     print("Migration completed for all files.")
 def migrate_db(file_path):
-
+    global col_type
     ### Connect Sqlite DB and Get Table List
 
     db_name = os.path.basename(file_path).replace('.db','')
@@ -36,12 +36,24 @@ def migrate_db(file_path):
 
     for table in tables:
         collection = mongo_db[table[0]]
-        query = f"SELECT *FROM {table[0]} LIMIT 200"
+        query = f"SELECT * FROM {table[0]} LIMIT 100"
         df = pd.read_sql(query, conn)
-        if table[0] == "main" or table[0] == "main_idx":
-            column_names = []
-            column_names = generate_name(df)
-            print(f"column data: {column_names}")        
+        if table[0] == "main":
+            column_name = generate_name(df)
+        for chunk in pd.read_sql_query(f"SELECT *FROM {table[0]}", conn, chunksize=500):
+            # Clean and prepare data if necessary
+            if table[0] == "main":
+                chunk.columns = column_name
+                for col, dtype in zip(chunk.columns, col_type):
+                    chunk[col] = chunk[col].astype(dtype)
+                col_type = []
+                result = analyze(chunk)                
+            # cleanned_data = analyze(chunk)            
+                json_data = result.to_dict(orient = 'records')
+            else:
+                json_data = chunk.to_dict(orient = 'records')
+            collection.insert_many(json_data)
+                    
     conn.close()    
 
 def get_db_name(db_name):
