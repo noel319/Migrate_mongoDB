@@ -5,6 +5,7 @@ from dateutil.parser import parse
 import pandas as pd
 OLLAMA_SERVER_URL = 'http://192.168.10.92:11434/api/generate'
 
+col_type = []
 # Pre make name by using regular expression
 
 phone_pattern = re.compile(r'\+?\d{1,3}[\s\-]?\(?\d{1,5}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4}')
@@ -43,10 +44,18 @@ def detect_phone(column_data):
         elif len(normalized_number) == 4 and int(normalized_number) > 2030:
             return True, 'passport_series'
     return False, ''
-    
+
+def detect_type(column_data):
+    global col_type
+    if isinstance(column_data, list):
+        column_data = pd.Series(column_data)
+    types = column_data.apply(lambda x: type(x)).value_counts()
+    col_type.append(types.index[0])
+
 def regx(column_data):    
     column_name = ''
-    flag = False    
+    flag = False
+    detect_type(column_data)    
     if column_data.count('') == len(column_data):
         flag = True
         column_name = 'null_column'
@@ -119,7 +128,8 @@ def make_name(column_data):
             return res.raise_for_status()
     
 def analyze(chunk):
-    num_list = []
+    global col_type
+    df = pd.DataFrame(chunk)
     chunk.drop_duplicates(inplace = True)
     for col in chunk.columns:        
         # Make Typecial Style IN Phone Number and Passport
@@ -130,15 +140,14 @@ def analyze(chunk):
         # Make Typical Style In Date
         chunk[col] = chunk[col].apply(convert_to_date)
         column_data = chunk[col].tolist()
-        try:
-            result = detect_outlier(column_data)
-            num_list = num_list + ast.literal_eval(result)
-        except (ValueError, SyntaxError) as e:
-            print("Error evaluatin the result:", e)
-    num_list = list(set(num_list))        
-    print(f"Main table error rows: {num_list}")
-    df = chunk.iloc[num_list]
-    print(df)
+        # try:
+        #     result = detect_outlier(column_data)
+        #     num_list = num_list + ast.literal_eval(result)
+        # except (ValueError, SyntaxError) as e:
+        #     print("Error evaluatin the result:", e)
+    for column, target_type in zip(chunk.columns, col_type):
+        df = df[df[column].apply(lambda x : isinstance(x, target_type) or pd.isnull(x))]
+    return df
     # new_df = rearange(df)
 
 def rearange(df):
