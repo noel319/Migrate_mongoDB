@@ -1,5 +1,5 @@
 import requests
-import re, ast
+import re, aiohttp
 from utils.config import general_names
 from dateutil.parser import parse
 import pandas as pd
@@ -76,12 +76,12 @@ def regx(column_data):
     return flag, column_name
 
 
-def generate_name(df):
+async def generate_name(df):
     column_names = []
     global general_names
     for col in df.columns:
         column_data = df[col].tolist()
-        new_name = make_name(column_data)
+        new_name = await make_name(column_data)
         count = sum(new_name in item for item in column_names)        
         if new_name not in general_names:            
             general_names.append(new_name)
@@ -90,7 +90,7 @@ def generate_name(df):
         else:
             column_names.append(new_name)
     return column_names
-def make_name(column_data):   
+async def make_name(column_data):   
     flag, column_name = regx(column_data)
     if flag:
         return column_name
@@ -120,13 +120,16 @@ def make_name(column_data):
             'prompt' : prompt,
             'stream' : False
         }
-        res = requests.post(OLLAMA_SERVER_URL, json=payload)
-        if res.status_code == 200:
-            str = res.json()['response']
-            str = str.split('\n')[0]
-            return str
-        else:
-            return res.raise_for_status()
+        # Using aiohttp for asynchronous HTTP requests
+        async with aiohttp.ClientSession() as session:
+            async with session.post(OLLAMA_SERVER_URL, json=payload) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    column_name = result['response'].split('\n')[0]
+                    return column_name
+                else:
+                    # Raise an exception if the status code indicates an error
+                    response.raise_for_status()
     
 def analyze(chunk):
     df = pd.DataFrame(chunk)
