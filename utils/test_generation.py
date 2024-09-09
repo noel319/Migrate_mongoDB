@@ -5,7 +5,6 @@ from dateutil.parser import parse
 import pandas as pd
 OLLAMA_SERVER_URL = 'http://192.168.10.92:11434/api/generate'
 
-col_type = []
 # Pre make name by using regular expression
 
 phone_pattern = re.compile(r'\+?\d{1,3}[\s\-]?\(?\d{1,5}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4}')
@@ -22,16 +21,25 @@ date_patterns = [
     ]
 
 def convert_to_date(date_str):
+    combined_pattern = '|'.join(date_patterns)
+    matches = re.findall(combined_pattern, date_str)    
     try:
-        return pd.to_datetime(date_str, errors='raise')
-    except:
-        try:
-            return pd.to_datetime(date_str, format='%Y', errors='raise')
-        except:
-            return date_str
+        if matches:
+            parse_date = parse(date_str)
+            if parse_date.year and parse_date.month and parse_date.day:
+                return parse_date.strftime('%d.%m.%Y')
+            elif parse_date.year and parse_date.month:
+                return f'01.{parse_date.strftime("%m.%Y")}'
+            elif parse_date.year:
+                return f'01.01.{parse_date.strftime("%Y")}'
+        else:           
+            return date_str        
+    except(ValueError, TypeError, AttributeError):
+        return date_str
 
 def detect_phone(column_data):
     if re.search(phone_pattern, str(column_data)):
+        
         normalized_number = re.sub(r'[^\d]', '', str(column_data))
         if normalized_number.startswith('8') and len(normalized_number) == 11:
             return True,'Phone_number'
@@ -45,21 +53,15 @@ def detect_phone(column_data):
             return True, 'passport_series'
     return False, ''
 
-def detect_type(column_data):
-    global col_type
-    if isinstance(column_data, list):
-        column_data = pd.Series(column_data)
-    types = column_data.apply(lambda x: type(x)).value_counts()
-    col_type.append(types.index[0])
+
 
 def regx(column_data):    
     column_name = ''
     flag = False
-    detect_type(column_data)    
     if column_data.count('') == len(column_data):
         flag = True
         column_name = 'null_column'
-        print("welcome to here")
+        
     else:
         for i in range(0,10):
             for name, pattern in patterns.items():
@@ -79,7 +81,6 @@ def generate_name(df):
     global general_names
     for col in df.columns:
         column_data = df[col].tolist()
-        # print(column_data)
         new_name = make_name(column_data)
         count = sum(new_name in item for item in column_names)        
         if new_name not in general_names:            
@@ -128,7 +129,6 @@ def make_name(column_data):
             return res.raise_for_status()
     
 def analyze(chunk):
-    global col_type
     df = pd.DataFrame(chunk)
     chunk.drop_duplicates(inplace = True)
     for col in chunk.columns:        
@@ -138,15 +138,7 @@ def analyze(chunk):
         elif col == "passport":
             chunk[col] = chunk[col].astype(str).str[:4] + 'No' + chunk[col].astype(str).str[4:]
         # Make Typical Style In Date
-        chunk[col] = chunk[col].apply(convert_to_date)
-        column_data = chunk[col].tolist()
-        # try:
-        #     result = detect_outlier(column_data)
-        #     num_list = num_list + ast.literal_eval(result)
-        # except (ValueError, SyntaxError) as e:
-        #     print("Error evaluatin the result:", e)
-    for column, target_type in zip(chunk.columns, col_type):
-        df = df[df[column].apply(lambda x : isinstance(x, target_type) or pd.isnull(x))]
+        # chunk[col] = chunk[col].apply(convert_to_date)       
     return df
     # new_df = rearange(df)
 
