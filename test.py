@@ -11,7 +11,7 @@ DATE_FORMAT = '%Y-%m-%d'
 client = motor.motor_asyncio.AsyncIOMotorClient(mongo_uri)
 def start_migrate(sqlite_folder):
     sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
-    pool = Pool(processes = 4)
+    pool = Pool(processes = cpu_count())
     
     for file_path in sqlite_files:
         print(f"Queuing migration for {file_path}")
