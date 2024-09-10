@@ -71,7 +71,7 @@ def regx(column_data):
                     break
             flag, column_name = detect_phone(str(column_data[i]))
             if flag:
-                break
+                return flag, column_name
             
     return flag, column_name
 
