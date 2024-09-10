@@ -6,7 +6,7 @@ import pandas as pd
 import motor.motor_asyncio
 
 sqlite_folder = 'db/'  
-mongo_uri = 'mongodb://localhost:27017/'
+mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/'
 DATE_FORMAT = '%Y-%m-%d'
 client = motor.motor_asyncio.AsyncIOMotorClient(mongo_uri)
 def start_migrate(sqlite_folder):
