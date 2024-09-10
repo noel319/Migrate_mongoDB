@@ -5,7 +5,7 @@ from utils.test_generation import generate_name, analyze
 import pandas as pd
 import motor.motor_asyncio
 
-sqlite_folder = 'db/'  
+sqlite_folder = '../../db/'  
 mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/'
 DATE_FORMAT = '%Y-%m-%d'
 client = motor.motor_asyncio.AsyncIOMotorClient(mongo_uri)
