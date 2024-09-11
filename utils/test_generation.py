@@ -39,16 +39,16 @@ def convert_to_date(date_str):
 
 def detect_phone(column_data):
     if re.search(phone_pattern, str(column_data)):        
-        normalized_number = re.sub(r'[^\d]', '', str(column_data))
+        normalized_number = re.sub(r'[^a-zA-Zа-яА-Я0-9\s]', '', str(column_data))
         if normalized_number.startswith('8') and len(normalized_number) == 11:
             return True,'Phone_number'
         elif normalized_number.startswith('7') and len(normalized_number) == 11:
             return True, 'Phone_number'
-        elif len(normalized_number) == 10 and len(column_data) == 10 and int(column_data[:4]) >3000:
+        elif len(normalized_number) == 10 and int(column_data[:4]) >3000:
             return True, 'passport'
-        elif len(normalized_number) == 6 and len(column_data) == 6:
+        elif len(normalized_number) == 6:
             return True, 'passport_number'
-        elif len(normalized_number) == 4 and int(normalized_number) > 2030 and len(column_data) == 4:
+        elif len(normalized_number) == 4 and int(normalized_number) > 2030:
             return True, 'passport_series'
     return False, ''
 
