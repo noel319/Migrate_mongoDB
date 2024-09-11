@@ -87,11 +87,11 @@ async def migrate_db(file_path):
                                 chunk[column] = chunk[column].astype('float64')
                         except (ValueError, TypeError):
                             try:
-                                chunk[column] = pd.to_datetime(chunk[column], format='%d.%m.%Y', errors='coerce').fillna(
-                                    pd.to_datetime(chunk[column], format='%Y-%m-%d', errors='coerce')).fillna(
-                                    pd.to_datetime(chunk[column], format='%m/%d/%Y', errors='coerce')).fillna(
-                                    pd.to_datetime(chunk[column], format='%Y', errors='coerce').apply(lambda x: x.replace(month=1, day=1) if pd.notna(x) else pd.NaT)).fillna(
-                                    pd.to_datetime(chunk[column], format='%b %d, %Y', errors='coerce')
+                                chunk[column] = pd.to_datetime(chunk[column], format='%d.%m.%Y', errors='raise').fillna(
+                                    pd.to_datetime(chunk[column], format='%Y-%m-%d', errors='raise')).fillna(
+                                    pd.to_datetime(chunk[column], format='%m/%d/%Y', errors='raise')).fillna(
+                                    pd.to_datetime(chunk[column], format='%Y', errors='raise').apply(lambda x: x.replace(month=1, day=1) if pd.notna(x) else pd.NaT)).fillna(
+                                    pd.to_datetime(chunk[column], format='%b %d, %Y', errors='raise')
                                     )
                             except (ValueError, TypeError):
                                 chunk[column] = chunk[column].astype('string', errors='ignore')
