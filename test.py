@@ -9,8 +9,8 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# sqlite_folder = '../../db/' 
-sqlite_folder = 'db/' 
+sqlite_folder = '../../db/' 
+# sqlite_folder = 'db/' 
 mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'
 DATE_FORMAT = '%Y-%m-%d'
 
