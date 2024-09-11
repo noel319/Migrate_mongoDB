@@ -5,8 +5,10 @@ from utils.test_generation import generate_name, analyze
 import pandas as pd
 import motor.motor_asyncio
 
-sqlite_folder = '../../db/'  
-mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/'
+sqlite_folder = '../../db/'
+# sqlite_folder = 'db/'  
+mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'
+# mongo_uri = 'mongodb://localhost:27017/'
 DATE_FORMAT = '%Y-%m-%d'
 client = motor.motor_asyncio.AsyncIOMotorClient(mongo_uri)
 def start_migrate(sqlite_folder):
@@ -21,31 +23,35 @@ def start_migrate(sqlite_folder):
     print("Migration completed for all files.")
 
 def run_migration_sync(file_path):
+    
     asyncio.run(migrate_db(file_path))
 
 async def migrate_db(file_path):
-
+    print(f"Starting Migrate {file_path}")
     ### Connect Sqlite DB and Get Table List
-
+    
     db_name = os.path.basename(file_path).replace('.db','')
     conn = sqlite3.connect(file_path)
     cursor = conn.cursor()
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
     tables = cursor.fetchall()
-    
+    print(f"The database include {tables} Tables")
     mongo_db_name = get_db_name(db_name)
     mongo_db = client[mongo_db_name]
-    await asyncio.sleep(1)
+    await asyncio.sleep(2)
     ### PreRead Table Column data And Make meaningful column name by using AI model
 
     for table in tables:
+        print(f"start {table[0]}")
         if table[0] == "main_config" or table[0] == "main_content":
             continue
         collection = mongo_db[table[0]]
         query = f"SELECT * FROM {table[0]} LIMIT 100"
         df = pd.read_sql(query, conn)
         if table[0] == "main":
-            column_name = await generate_name(df)        
+            print(f"Start make {table[0]} column name")
+            column_name = await generate_name(df)
+            print(f"Finished making Column Name: {column_name}")        
         for chunk in pd.read_sql_query(f"SELECT *FROM {table[0]}", conn, chunksize=500):
             for column in chunk.columns:
                 try:
@@ -71,8 +77,9 @@ async def migrate_db(file_path):
                 json_data = result.to_dict(orient = 'records')
             else:
                 json_data = chunk.to_dict(orient = 'records')
-
-            await collection.insert_many(json_data)            
+            print(f"Migrating {table[0]} collection")
+            await collection.insert_many(json_data)
+        print(f"Finish migration collection")            
     conn.close()    
 
 def get_db_name(db_name):

@@ -44,7 +44,7 @@ def detect_phone(column_data):
             return True,'Phone_number'
         elif normalized_number.startswith('7') and len(normalized_number) == 11:
             return True, 'Phone_number'
-        elif len(normalized_number) == 10 and len(column_data) == 10:
+        elif len(normalized_number) == 10 and len(column_data) == 10 and int(column_data[:4]) >3000:
             return True, 'passport'
         elif len(normalized_number) == 6 and len(column_data) == 6:
             return True, 'passport_number'
@@ -120,28 +120,30 @@ async def make_name(column_data):
             'stream' : False
         }
         # Using aiohttp for asynchronous HTTP requests
+        
         async with aiohttp.ClientSession() as session:
             async with session.post(OLLAMA_SERVER_URL, json=payload) as response:
                 if response.status == 200:
+                    
                     result = await response.json()
                     column_name = result['response'].split('\n')[0]
                     return column_name
                 else:
+                    
                     # Raise an exception if the status code indicates an error
                     response.raise_for_status()
-    
+        
 def analyze(chunk):
-    df = pd.DataFrame(chunk)
     chunk.drop_duplicates(inplace = True)
     for col in chunk.columns:        
         # Make Typecial Style IN Phone Number and Passport
         if col == "Phone_number":
-            chunk[col] = chunk[col].str.replace(r'[^\d]', '', regex = True)
+            chunk[col] = chunk[col].str.replace(r'[^\d,]', '', regex = True)
         elif col == "passport":
             chunk[col] = chunk[col].astype(str).str[:4] + 'No' + chunk[col].astype(str).str[4:]
         # Make Typical Style In Date
         # chunk[col] = chunk[col].apply(convert_to_date)       
-    return df
+    return chunk
     # new_df = rearange(df)
 
 def rearange(df):
