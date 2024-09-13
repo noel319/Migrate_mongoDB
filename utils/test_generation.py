@@ -195,9 +195,9 @@ async def make_name(column_data):
                             column_name = re.findall(r'"(.*?)"', result['response'])[0]
                     return column_name
                 else:
-                    
+                    return "unknow_name"
                     # Raise an exception if the status code indicates an error
-                    response.raise_for_status()
+                    
         
 def analyze(chunk, column_type):
     

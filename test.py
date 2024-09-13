@@ -21,14 +21,15 @@ async def start_migrate(sqlite_folder):
     
     async with Pool() as pool:
         await pool.map(run_migration_sync, sqlite_files)      
-    
+
     logging.info("Migration completed for all files.")
     
 # Function to run the migration synchronously
 async def run_migration_sync(file_path):
     try:
         logging.info(f"Queuing migration for {file_path}")
-        await migrate_db(file_path)
+        await asyncio.sleep(5)
+        await migrate_db(file_path)        
     except Exception as e:
         logging.error(f"Error in migrating {file_path}: {e}")
 
