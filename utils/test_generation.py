@@ -1,8 +1,9 @@
 import requests
 import re, aiohttp
 from utils.config import general_names
-from dateutil.parser import parse
+import warnings
 import pandas as pd
+
 OLLAMA_SERVER_URL = 'http://192.168.10.92:11434/api/generate'
 
 # Pre make name by using regular expression
@@ -19,36 +20,65 @@ date_patterns = [
         r'\b\d{1,2}\.\d{1,2}\.\d{4}\b',  # Matches DD.MM.YYYY
         r'\b\d{1,2}/\d{1,2}/\d{4}\b', #Matches DD/MM/YYYY
     ]
-
-def convert_to_date(date_str):
-    combined_pattern = '|'.join(date_patterns)
-    matches = re.findall(combined_pattern, date_str)    
+def is_float(value):
+    # Check if the value can be converted to a float
     try:
-        if matches:
-            parse_date = parse(date_str)
-            if parse_date.year and parse_date.month and parse_date.day:
-                return parse_date.strftime('%d.%m.%Y')
-            elif parse_date.year and parse_date.month:
-                return f'01.{parse_date.strftime("%m.%Y")}'
-            elif parse_date.year:
-                return f'01.01.{parse_date.strftime("%Y")}'
-        else:           
-            return date_str        
-    except(ValueError, TypeError, AttributeError):
-        return date_str
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+def is_date(date_str):
+    try:
+        pd.to_datetime(date_str)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+def detect_type(df, col):
+    # Initialize counters for different data types
+    dtype_counts = {
+        'string': 0,
+        'int_string': 0,
+        'float_string': 0,
+        'date': 0
+    }
+    # Analyze each value in the column
+    for value in df[col]:
+        if isinstance(value, str):
+            if value.isdigit():  # Check for integer strings
+                dtype_counts['int_string'] += 1
+            elif is_float(value):  # Check for float strings
+                dtype_counts['float_string'] += 1
+            elif is_date(value):  # Check for valid date strings
+                dtype_counts['date'] += 1
+            else:  # Otherwise, it's a regular string
+                dtype_counts['string'] += 1
+        elif isinstance(value, (int, float)):  # Handle numeric types
+            if isinstance(value, int):
+                dtype_counts['int_string'] += 1
+            elif isinstance(value, float):
+                dtype_counts['float_string'] += 1
+        elif isinstance(value, pd.Timestamp):  # Handle Timestamp objects
+            dtype_counts['date'] += 1
+        else:
+            dtype_counts['string'] += 1
+    column_type = (max(dtype_counts, key=dtype_counts.get))
+    return column_type
 
 def detect_phone(column_data):
     if re.search(phone_pattern, str(column_data)):        
         normalized_number = re.sub(r'[^a-zA-Zа-яА-Я0-9\s]', '', str(column_data))
+        num_len = len(re.sub(r'[^\d]', '', str(column_data)))
         if normalized_number.startswith('8') and len(normalized_number) == 11:
             return True,'Phone_number'
         elif normalized_number.startswith('7') and len(normalized_number) == 11:
             return True, 'Phone_number'
         elif len(normalized_number) == 10 and int(column_data[:4]) >3000:
             return True, 'passport'
-        elif len(normalized_number) == 6:
+        elif len(normalized_number) == 6 and num_len == 6:
             return True, 'passport_number'
-        elif len(normalized_number) == 4 and int(normalized_number) > 2030:
+        elif len(normalized_number) == 4 and int(normalized_number)>2030 and num_len == 4:
             return True, 'passport_series'
     return False, ''
 
@@ -77,8 +107,10 @@ def regx(column_data):
 
 async def generate_name(df):
     column_names = []
+    column_tpye = []
     global general_names
     for col in df.columns:
+        column_tpye.append(detect_type(df, col))
         column_data = df[col].tolist()
         new_name = await make_name(column_data)
         count = sum(new_name in item for item in column_names)        
@@ -88,7 +120,7 @@ async def generate_name(df):
             column_names.append(f"{new_name}_{count}")
         else:
             column_names.append(new_name)
-    return column_names
+    return column_names, column_tpye
 async def make_name(column_data):   
     flag, column_name = regx(column_data)
     if flag:
@@ -123,26 +155,50 @@ async def make_name(column_data):
         
         async with aiohttp.ClientSession() as session:
             async with session.post(OLLAMA_SERVER_URL, json=payload) as response:
-                if response.status == 200:
-                    
+                if response.status == 200:                    
                     result = await response.json()
-                    column_name = result['response'].split('\n')[0]
+                    if len(result['response'].split('\n')[0]) < 50:
+                        column_name = result['response'].split('\n')[0]
+                    else:
+                        if re.findall(r"`(.*?)`", result['response']):
+                            column_name = re.findall(r"`(.*?)`", result['response'])[0]
+                        elif re.findall(r"'(.*?)'", result['response']):
+                            column_name = re.findall(r"'(.*?)'", result['response'])[0]
+                        elif re.findall(r'"(.*?)"', result['response']):
+                            column_name = re.findall(r'"(.*?)"', result['response'])[0]
                     return column_name
                 else:
                     
                     # Raise an exception if the status code indicates an error
                     response.raise_for_status()
         
-def analyze(chunk):
+def analyze(chunk, column_type):
+    
     chunk.drop_duplicates(inplace = True)
     for col in chunk.columns:        
         # Make Typecial Style IN Phone Number and Passport
         if col == "Phone_number":
-            chunk[col] = chunk[col].str.replace(r'[^\d,]', '', regex = True)
+            try:
+                chunk[col] = chunk[col].str.replace(r'[^\d,]', '', regex = True)
+            except ValueError:
+                pass
         elif col == "passport":
-            chunk[col] = chunk[col].astype(str).str[:4] + 'No' + chunk[col].astype(str).str[4:]
-        # Make Typical Style In Date
-        # chunk[col] = chunk[col].apply(convert_to_date)       
+            try:
+                chunk[col] = chunk[col].astype(str).str[:4] + 'No' + chunk[col].astype(str).str[4:]
+            except ValueError:
+                pass
+        if column_type[chunk.columns.get_loc(col)] == 'string':
+            chunk[col] = chunk[col].astype(str)
+        elif column_type[chunk.columns.get_loc(col)]  == 'int_string':
+            chunk[col] = pd.to_numeric(chunk[col], errors='coerce').fillna(0).astype(int)
+        elif column_type[chunk.columns.get_loc(col)]  == 'float_string':
+            chunk[col] = pd.to_numeric(chunk[col], errors='coerce').astype(float)
+        elif column_type[chunk.columns.get_loc(col)]  == 'date':        
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+        # Convert to datetime and replace invalid dates with empty string
+                chunk[col] = pd.to_datetime(chunk[col], errors='coerce', dayfirst=False)
+            chunk[col] = chunk[col].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if pd.notnull(x) else "")
     return chunk
     # new_df = rearange(df)
 
