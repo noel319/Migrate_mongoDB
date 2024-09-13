@@ -7,7 +7,8 @@ import pandas as pd
 OLLAMA_SERVER_URL = 'http://192.168.10.92:11434/api/generate'
 
 # Pre make name by using regular expression
-
+INT32_MIN = -(2**31)
+INT32_MAX = 2**31 - 1
 phone_pattern = re.compile(r'\+?\d{1,3}[\s\-]?\(?\d{1,5}\)?[\s\-]?\d{1,4}[\s\-]?\d{1,4}[\s\-]?\d{1,4}')
 patterns = {
         'email': r'[\w\.-]+@[\w\.-]+',
@@ -23,15 +24,32 @@ date_patterns = [
 def is_float(value):
     # Check if the value can be converted to a float
     try:
-        float(value)
-        return True
-    except ValueError:
+        # Check if the value is an float within the int32 range
+        val = float(value)
+        if INT32_MIN <= val <= INT32_MAX:
+            return True
+        else:
+            return False
+    except (ValueError, TypeError):
         return False
 
 def is_date(date_str):
     try:
-        pd.to_datetime(date_str)
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            pd.to_datetime(date_str, dayfirst=True)
         return True
+    except (ValueError, TypeError):
+        return False
+
+def is_valid_int(value):
+    try:
+        # Check if the value is an integer within the int32 range
+        val = int(value)
+        if INT32_MIN <= val <= INT32_MAX:
+            return True
+        else:
+            return False
     except (ValueError, TypeError):
         return False
 
@@ -46,22 +64,24 @@ def detect_type(df, col):
     # Analyze each value in the column
     for value in df[col]:
         if isinstance(value, str):
-            if value.isdigit():  # Check for integer strings
+            if is_valid_int(value):  # Check for valid integer strings
                 dtype_counts['int_string'] += 1
             elif is_float(value):  # Check for float strings
                 dtype_counts['float_string'] += 1
-            elif is_date(value):  # Check for valid date strings
+            elif is_date(value) and value != '':  # Check for valid date strings
                 dtype_counts['date'] += 1
-            else:  # Otherwise, it's a regular string
+            elif value != '':  # Otherwise, it's a regular string
                 dtype_counts['string'] += 1
         elif isinstance(value, (int, float)):  # Handle numeric types
-            if isinstance(value, int):
+            if isinstance(value, int) and INT32_MIN <= value <= INT32_MAX:
                 dtype_counts['int_string'] += 1
-            elif isinstance(value, float):
+            elif isinstance(value, float) and INT32_MIN <= value <= INT32_MAX:
                 dtype_counts['float_string'] += 1
-        elif isinstance(value, pd.Timestamp):  # Handle Timestamp objects
+            else:
+                dtype_counts['string'] += 1  # Handle large numbers outside int32 range
+        elif isinstance(value, pd.Timestamp) and pd.notnull(value):  # Handle Timestamp objects
             dtype_counts['date'] += 1
-        else:
+        elif pd.notnull(value):
             dtype_counts['string'] += 1
     column_type = (max(dtype_counts, key=dtype_counts.get))
     return column_type
@@ -71,14 +91,14 @@ def detect_phone(column_data):
         normalized_number = re.sub(r'[^a-zA-Zа-яА-Я0-9\s]', '', str(column_data))
         num_len = len(re.sub(r'[^\d]', '', str(column_data)))
         if normalized_number.startswith('8') and len(normalized_number) == 11:
-            return True,'Phone_number'
+            return True,'phone_number'
         elif normalized_number.startswith('7') and len(normalized_number) == 11:
-            return True, 'Phone_number'
-        elif len(normalized_number) == 10 and int(column_data[:4]) >3000:
+            return True, 'phone_number'
+        elif len(normalized_number) == 10 and num_len ==10:
             return True, 'passport'
         elif len(normalized_number) == 6 and num_len == 6:
             return True, 'passport_number'
-        elif len(normalized_number) == 4 and int(normalized_number)>2030 and num_len == 4:
+        elif len(normalized_number) == 4 and num_len == 4:
             return True, 'passport_series'
     return False, ''
 
@@ -87,21 +107,28 @@ def detect_phone(column_data):
 def regx(column_data):    
     column_name = ''
     flag = False
+    name_type = {'phone_number':0, 'passport':0, 'passport_series':0, 'passport_number':0, 'null':0}
     if column_data.count('') == len(column_data):
         flag = True
         column_name = 'null_column'
         
     else:
-        for i in range(0,10):
+        for i in range(0,len(column_data)):
             for name, pattern in patterns.items():
                 if re.search(pattern, str(column_data[i])):
                     column_name = name
                     flag = True
-                    break
+                    return flag, column_name
             flag, column_name = detect_phone(str(column_data[i]))
             if flag:
-                return flag, column_name
-            
+                name_type[column_name] += 1 
+            else:
+                name_type['null'] += 1
+        most_name = max(name_type, key=name_type.get)
+        if most_name == 'null':
+            return False, ''
+        else:
+            return True, most_name
     return flag, column_name
 
 
@@ -197,8 +224,8 @@ def analyze(chunk, column_type):
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
         # Convert to datetime and replace invalid dates with empty string
-                chunk[col] = pd.to_datetime(chunk[col], errors='coerce', dayfirst=False)
-            chunk[col] = chunk[col].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S') if pd.notnull(x) else "")
+                chunk[col] = pd.to_datetime(chunk[col], errors='coerce', dayfirst=True)
+            chunk[col] = chunk[col].astype(object).where(chunk[col].notnull(), None)
     return chunk
     # new_df = rearange(df)
 
