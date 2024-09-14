@@ -18,11 +18,11 @@ mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'
 async def start_migrate(sqlite_folder):
     tasks = []
     sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
-    async with Pool(processes = 12) as pool:        
+    async with Pool(processes = 10) as pool:        
         for i, sqlite_file in enumerate(sqlite_files):
             if is_file_migrated (sqlite_file):
                 continue
-            delay = i * 15
+            delay = i * 40
             tasks.append(pool.apply(run_migration_sync, (sqlite_file, delay)))
         await asyncio.gather(*tasks)
     logging.info("Migration completed for all files.")
