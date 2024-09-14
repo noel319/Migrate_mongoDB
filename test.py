@@ -5,7 +5,7 @@ from utils.test_generation import generate_name, analyze
 import pandas as pd
 import motor.motor_asyncio
 import logging
-
+TRACKING_FILE = 'migrated_files.txt'
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -18,8 +18,10 @@ mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'
 async def start_migrate(sqlite_folder):
     
     sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
-    async with Pool() as pool:
+    async with Pool() as pool:        
         for sqlite_file in sqlite_files:
+            if is_file_migrated (sqlite_file):
+                continue
             await pool.apply(run_migration_sync, args = (sqlite_file, ))      
             await asyncio.sleep(5)
     logging.info("Migration completed for all files.")
@@ -105,6 +107,8 @@ async def migrate_db(file_path):
         # Ensure the MongoDB client is closed after migration        
         logging.info(f"MongoDB client closed for {file_path}")
         client.close()
+        with open(TRACKING_FILE, 'a') as f:
+            f.write(f"{file_path}\n")
 
 # Function to sanitize database names
 def get_db_name(db_name):
@@ -113,5 +117,16 @@ def get_db_name(db_name):
     db_name = db_name[:30]
     return db_name
 
-if __name__ == "__main__":
+def is_file_migrated(filename):
+    """Check if the given filename is in the migrated files list."""
+    if not os.path.exists(TRACKING_FILE):
+        return False  
+
+    with open(TRACKING_FILE, 'r') as f:
+        migrated_files = f.read().splitlines() 
+
+    return filename in migrated_files  
+
+if __name__ == "__main__":    
     asyncio.run(start_migrate(sqlite_folder))
+
