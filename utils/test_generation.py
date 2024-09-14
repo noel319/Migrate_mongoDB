@@ -133,6 +133,7 @@ def regx(column_data):
 
 
 async def generate_name(df):
+    
     column_names = []
     column_tpye = []
     global general_names

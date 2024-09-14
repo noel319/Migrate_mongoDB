@@ -9,26 +9,26 @@ import logging
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-sqlite_folder = '../../db/' 
-# sqlite_folder = 'db/' 
-mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'
-# mongo_uri = 'mongodb://localhost:27017'
+# sqlite_folder = '../../db/' 
+sqlite_folder = 'db/' 
+# mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'
+mongo_uri = 'mongodb://localhost:27017'
 
 # Function to start the migration process
 async def start_migrate(sqlite_folder):
     
     sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
-    
     async with Pool() as pool:
-        await pool.map(run_migration_sync, sqlite_files)      
-
+        for sqlite_file in sqlite_files:
+            await pool.apply(run_migration_sync, args = (sqlite_file, ))      
+            await asyncio.sleep(5)
     logging.info("Migration completed for all files.")
     
+
 # Function to run the migration synchronously
 async def run_migration_sync(file_path):
     try:
         logging.info(f"Queuing migration for {file_path}")
-        await asyncio.sleep(5)
         await migrate_db(file_path)        
     except Exception as e:
         logging.error(f"Error in migrating {file_path}: {e}")
