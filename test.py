@@ -22,7 +22,7 @@ async def start_migrate(sqlite_folder):
         for i, sqlite_file in enumerate(sqlite_files):
             if is_file_migrated (sqlite_file):
                 continue
-            delay = 20
+            delay = i*10
             tasks.append(pool.apply(run_migration_sync, (sqlite_file, delay)))
         await asyncio.gather(*tasks)
     logging.info("Migration completed for all files.")
