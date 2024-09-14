@@ -1,4 +1,4 @@
-from aiomultiprocess import Pool
+from aiomultiprocess import Process
 import os, re, asyncio
 import sqlite3
 from utils.test_generation import generate_name, analyze
@@ -16,20 +16,25 @@ mongo_uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'
 
 # Function to start the migration process
 async def start_migrate(sqlite_folder):
-    
+    processes = []
     sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
-    async with Pool() as pool:        
-        for sqlite_file in sqlite_files:
-            if is_file_migrated (sqlite_file):
-                continue
-            await pool.apply(run_migration_sync, args = (sqlite_file, ))      
-            await asyncio.sleep(5)
+    for i, sqlite_file in enumerate(sqlite_files):
+        if is_file_migrated (sqlite_file):
+            continue
+        delay = i * 15
+        process = Process(target = run_migration_sync, args = (sqlite_file, delay))
+        processes.append(process)
+    for process in processes:
+        process.start()
+    for process in processes:
+        await process.join()        
     logging.info("Migration completed for all files.")
     
 
 # Function to run the migration synchronously
-async def run_migration_sync(file_path):
+async def run_migration_sync(file_path, delay_seconds):
     try:
+        await asyncio.sleep(delay_seconds)
         logging.info(f"Queuing migration for {file_path}")
         await migrate_db(file_path)        
     except Exception as e:
