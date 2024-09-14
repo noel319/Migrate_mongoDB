@@ -22,7 +22,7 @@ async def start_migrate(sqlite_folder):
         for i, sqlite_file in enumerate(sqlite_files):
             if is_file_migrated (sqlite_file):
                 continue
-            delay = i * 40
+            delay = 20
             tasks.append(pool.apply(run_migration_sync, (sqlite_file, delay)))
         await asyncio.gather(*tasks)
     logging.info("Migration completed for all files.")
@@ -78,7 +78,7 @@ async def migrate_db(file_path):
 
             # Read table in chunks and migrate
             try:
-                for chunk in pd.read_sql_query(f"SELECT * FROM {table[0]}", conn, chunksize=1000):
+                for chunk in pd.read_sql_query(f"SELECT * FROM {table[0]}", conn, chunksize=500):
                     
                     # Clean and set datatype if necessary
                     if table[0] == "main":
