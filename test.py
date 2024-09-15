@@ -20,7 +20,7 @@ async def start_migrate(sqlite_folder):
     i = 0
     sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
     async with Pool(processes = 10) as pool:        
-        for sqlite_file in enumerate(sqlite_files):
+        for sqlite_file in sqlite_files:
             if is_file_migrated (sqlite_file):
                 continue
             else:
