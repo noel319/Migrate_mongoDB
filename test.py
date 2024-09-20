@@ -1,11 +1,12 @@
 from aiomultiprocess import Pool
 import os, re, asyncio
 import sqlite3
-from utils.test_generation import generate_name, analyze
+from utils.ai_generation import generate_name, analyze
 import pandas as pd
+from utils.check import check_db
 import motor.motor_asyncio
 import logging
-TRACKING_FILE = 'migrated_files.txt'
+TRACKING_FILE = '../check_files.txt'
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -21,14 +22,13 @@ async def start_migrate(sqlite_folder):
     sqlite_files = [os.path.join(sqlite_folder, file) for file in os.listdir(sqlite_folder) if file.endswith('.db')]
     async with Pool(processes = 10) as pool:        
         for sqlite_file in sqlite_files:
-            if is_file_migrated (sqlite_file):
-                continue
-            else:
+            db_name = os.path.basename(sqlite_file).replace('.db', '')
+            mongo_db_name = get_db_name(db_name)
+            if check_db(mongo_uri, mongo_db_name):
                 i += 1
-            if i <=30:
-                delay = i*13
             else:
-                delay = i * 5
+                continue
+            delay = i*5
             tasks.append(pool.apply(run_migration_sync, (sqlite_file, delay)))
         await asyncio.gather(*tasks)
     logging.info("Migration completed for all files.")
