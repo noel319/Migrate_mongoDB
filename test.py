@@ -6,7 +6,7 @@ import pandas as pd
 from utils.check import check_db
 import motor.motor_asyncio
 import logging
-TRACKING_FILE = '../check_files.txt'
+TRACKING_FILE = 'check_files.txt'
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -24,7 +24,7 @@ async def start_migrate(sqlite_folder):
         for sqlite_file in sqlite_files:
             db_name = os.path.basename(sqlite_file).replace('.db', '')
             mongo_db_name = get_db_name(db_name)
-            if check_db(mongo_uri, mongo_db_name):
+            if await check_db(mongo_uri, mongo_db_name):
                 i += 1
             else:
                 continue
