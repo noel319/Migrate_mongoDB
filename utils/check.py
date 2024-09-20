@@ -1,6 +1,6 @@
 import motor.motor_asyncio
 from pymongo.errors import ServerSelectionTimeoutError
-import asyncio
+
 
 async def check_db(uri, db_name):
     # Create an async client
@@ -28,10 +28,5 @@ async def check_db(uri, db_name):
     except ServerSelectionTimeoutError:
         print("Unable to connect to MongoDB server. Check your connection or URI.")
 
-# Example usage
-uri = "mongodb://localhost:27017"  # MongoDB URI
-db_name = "example_db"
-collection_name = "main_collection"
 
-# Run the async function
-asyncio.run(check_db(uri, db_name, collection_name))
+

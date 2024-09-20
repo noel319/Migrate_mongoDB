@@ -1,7 +1,7 @@
 from aiomultiprocess import Pool
 import os, re, asyncio
 import sqlite3
-from utils.ai_generation import generate_name, analyze
+from utils.test_generation import generate_name, analyze
 import pandas as pd
 from utils.check import check_db
 import motor.motor_asyncio
