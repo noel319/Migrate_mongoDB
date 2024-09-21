@@ -43,7 +43,7 @@ async def delete_databases_with_special_field_name(uri):
         client.close()
 
 # Example usage
-uri = "mongodb://localhost:27017"  # MongoDB URI
+uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'  # MongoDB URI
 
 # Run the async function
 asyncio.run(delete_databases_with_special_field_name(uri))
