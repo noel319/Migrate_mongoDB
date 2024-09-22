@@ -1,6 +1,7 @@
 import motor.motor_asyncio
 from pymongo.errors import ServerSelectionTimeoutError, OperationFailure
 import asyncio
+from aiomultiprocess import Pool
 
 async def delete_databases_with_special_field_name(uri):
     # Create an async MongoDB client
@@ -21,11 +22,11 @@ async def delete_databases_with_special_field_name(uri):
                 main_collection = db['main']
                 
                 try:
-                    # Step 4: Find documents in the 'main' collection with a field name that includes a single quote (')
+                    # Step 4: Find documents in the 'main' collection with a field name that includes a single quote (') or backtick (`).
                     async for document in main_collection.find():
                         for field in document.keys():
-                            if "'" in field:  # Check if the field name contains a single quote (')
-                                print(f"Database '{db_name}' contains a document with a field name that includes a single quote: {field}")
+                            if "'" in field or "`" in field:  # Corrected logic
+                                print(f"Database '{db_name}' contains a document with a field name that includes a special character: {field}")
                                 
                                 # Step 5: Delete the database if such a field is found
                                 await client.drop_database(db_name)
@@ -39,11 +40,16 @@ async def delete_databases_with_special_field_name(uri):
     except ServerSelectionTimeoutError:
         print("Unable to connect to MongoDB server. Check your connection or URI.")
     finally:
-        # Close the connection
-        client.close()
+        # Close the connection asynchronously
+        await client.close()
+
+async def start_delete(uri):
+    # Create a pool for parallel execution
+    async with Pool() as pool:
+        await pool.apply(delete_databases_with_special_field_name, (uri,))
 
 # Example usage
-uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'  # MongoDB URI
-
-# Run the async function
-asyncio.run(delete_databases_with_special_field_name(uri))
+if __name__ == "__main__":
+    uri = 'mongodb://twuser:moniThmaRtio@192.168.20.75:27017/admin'  # MongoDB URI
+    # Run the async function
+    asyncio.run(start_delete(uri))
