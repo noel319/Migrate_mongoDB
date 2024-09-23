@@ -2,6 +2,7 @@ import motor.motor_asyncio
 from pymongo.errors import ServerSelectionTimeoutError, OperationFailure
 import asyncio,os
 from aiomultiprocess import Pool
+from datetime import datetime
 Search_FILE = 'search_files.txt'
 async def delete_databases_with_special_field_name(uri):
     # Create an async MongoDB client
@@ -26,14 +27,15 @@ async def delete_databases_with_special_field_name(uri):
                 try:
                     # Step 4: Find documents in the 'main' collection with a field name that includes a single quote (') or backtick (`).
                     async for document in main_collection.find():
-                        for field in document.keys():
-                            if "time_period" in field or "email_1" in field:  # Corrected logic
-                                print(f"Database '{db_name}' contains a document with a field name that includes a special character: {field}")
+                        for field, value in document.items():
+                            if isinstance(value, datetime):
+                                if "date" not in field:  # Corrected logic
+                                    print(f"Database '{db_name}' contains a document with a field name that includes a special character: {field}")
                                 
                                 # Step 5: Delete the database if such a field is found
-                                await client.drop_database(db_name)
-                                print(f"Deleted database: {db_name}")
-                                break
+                                    await client.drop_database(db_name)
+                                    print(f"Deleted database: {db_name}")
+                                    break
                         break
                 except OperationFailure as e:
                     print(f"Skipping database '{db_name}' due to error: {e}")
