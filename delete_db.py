@@ -27,7 +27,7 @@ async def delete_databases_with_special_field_name(uri):
                     # Step 4: Find documents in the 'main' collection with a field name that includes a single quote (') or backtick (`).
                     async for document in main_collection.find():
                         for field in document.keys():
-                            if "iban" in field or "email_1" in field:  # Corrected logic
+                            if "time_period" in field or "email_1" in field:  # Corrected logic
                                 print(f"Database '{db_name}' contains a document with a field name that includes a special character: {field}")
                                 
                                 # Step 5: Delete the database if such a field is found
