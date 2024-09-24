@@ -142,8 +142,8 @@ async def generate_name(df):
         column_data = df[col].tolist()
         new_name = await make_name(column_data)
         count = sum(new_name in item for item in column_names)        
-        if new_name not in general_names:            
-            general_names.append(new_name)
+        # if new_name not in general_names:            
+        #     general_names.append(new_name)
         if count:
             column_names.append(f"{new_name}_{count}")
         else:
