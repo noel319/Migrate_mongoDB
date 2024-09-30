@@ -8,7 +8,7 @@ from aiohttp_socks import ProxyConnector
 url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent'
 
 headers = {
-    'x-goog-api-key': 'AIzaSyCQOTUyGkea_CY243gzWnFwRVtLWfIYgXM',
+    'x-goog-api-key': '',
     'x-goog-api-client': 'genai-python/0.1.0',  # Indicating the platform as Python
     'accept': 'application/json',
     'accept-charset': 'UTF-8',
