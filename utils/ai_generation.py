@@ -4,7 +4,12 @@ from utils.config import general_names
 import warnings
 import pandas as pd
 
-OLLAMA_SERVER_URL = 'http://192.168.10.92:11434/api/generate'
+url = "https://os-api.com/api/openai/chat/completions"
+api_key = "gbKRLDQp3cVhAw"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {api_key}"
+}
 
 # Pre make name by using regular expression
 INT32_MIN = -(2**31)
@@ -173,27 +178,31 @@ async def make_name(column_data):
         Do not include descriptions or any additional text, only the column names.
         Return only one column name. 
         """
-
-        payload = {
-            'model' : 'llama3.1:70b',
-            'prompt' : prompt,
-            'stream' : False
-        }
+        data = {
+                "model": "gpt-4",  # Use the model you need
+                "messages": [
+                    {"role": "system", "content": "You are a creative assistant."},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": 200,  # Adjust based on the desired response length
+                "temperature": 0.8  # Increase for more creative responses
+            }
+        
         # Using aiohttp for asynchronous HTTP requests
         
         async with aiohttp.ClientSession() as session:
-            async with session.post(OLLAMA_SERVER_URL, json=payload) as response:
+            async with session.post(url, headers=headers, json=data) as response:
                 if response.status == 200:                    
                     result = await response.json()
-                    if len(result['response'].split('\n')[0]) < 50:
-                        column_name = result['response'].split('\n')[0]
+                    if len(result['choices'][0]['message']['content']) < 50:
+                        column_name = result['choices'][0]['message']['content']
                     else:
-                        if re.findall(r"`(.*?)`", result['response']):
-                            column_name = re.findall(r"`(.*?)`", result['response'])[0]
+                        if re.findall(r"`(.*?)`", result['choices'][0]['message']['content']):
+                            column_name = re.findall(r"`(.*?)`", result['choices'][0]['message']['content'])[0]
                         elif re.findall(r"'(.*?)'", result['response']):
-                            column_name = re.findall(r"'(.*?)'", result['response'])[0]
+                            column_name = re.findall(r"'(.*?)'", result['choices'][0]['message']['content'])[0]
                         elif re.findall(r'"(.*?)"', result['response']):
-                            column_name = re.findall(r'"(.*?)"', result['response'])[0]
+                            column_name = re.findall(r'"(.*?)"', result['choices'][0]['message']['content'])[0]
                     return column_name
                 else:
                     return "unknow_name"
