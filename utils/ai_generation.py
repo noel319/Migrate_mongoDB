@@ -5,7 +5,7 @@ import warnings
 import pandas as pd
 
 url = "https://os-api.com/api/openai/chat/completions"
-api_key = "gbKRLDQp3cVhAw"
+api_key = ""
 headers = {
     "Content-Type": "application/json",
     "Authorization": f"Bearer {api_key}"
