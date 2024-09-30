@@ -3,7 +3,7 @@ import torch
 from huggingface_hub import login
 
 # Replace with your API token
-login("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")
+login("")
 
 
 # Load model and tokenizer
