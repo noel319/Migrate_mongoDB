@@ -1,7 +1,7 @@
 import requests
 
 # Set up your OpenAI API key
-api_key = "gbKRLDQp3cVhAw"
+api_key = ""
 
 # Define the API endpoint
 url = "https://os-api.com/api/openai/chat/completions"
