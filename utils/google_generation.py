@@ -3,13 +3,19 @@ import re, aiohttp
 from utils.config import general_names
 import warnings
 import pandas as pd
+from aiohttp_socks import ProxyConnector
 
-url = "https://os-api.com/api/openai/chat/completions"
-api_key = "gbKRLDQp3cVhAw"
+url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent'
+
 headers = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {api_key}"
+    'x-goog-api-key': 'AIzaSyCQOTUyGkea_CY243gzWnFwRVtLWfIYgXM',
+    'x-goog-api-client': 'genai-python/0.1.0',  # Indicating the platform as Python
+    'accept': 'application/json',
+    'accept-charset': 'UTF-8',
+    'user-agent': 'Python client',
+    'content-type': 'application/json'
 }
+
 
 # Pre make name by using regular expression
 INT32_MIN = -(2**31)
@@ -178,31 +184,37 @@ async def make_name(column_data):
         Do not include descriptions or any additional text, only the column names.
         Return only one column name. 
         """
-        data = {
-                "model": "gpt-4",  # Use the model you need
-                "messages": [
-                    {"role": "system", "content": "You are a creative assistant."},
-                    {"role": "user", "content": prompt}
+        payload = {
+                "model": "models/gemini-1.5-pro",
+                "contents": [
+                    {"role": "user", "parts": [{"text": prompt}]}
                 ],
-                "max_tokens": 200,  # Adjust based on the desired response length
-                "temperature": 0.8  # Increase for more creative responses
+                "generation_config": {
+                    "temperature": 0.7,
+                    "top_p": None,
+                    "top_k": None,
+                    "candidate_count": None,
+                    "max_output_tokens": 100,
+                    "stop_sequences": []
+                }
             }
         
         # Using aiohttp for asynchronous HTTP requests
-        
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=data) as response:
+        connector = ProxyConnector.from_url('socks5://0fQyzH:xrMfo0@196.19.123.109:8000')
+        async with aiohttp.ClientSession(connector=connector) as session:
+            async with session.post(url, headers=headers, json=payload) as response:
                 if response.status == 200:                    
                     result = await response.json()
-                    if len(result['choices'][0]['message']['content']) < 50:
-                        column_name = result['choices'][0]['message']['content']
+                    print("API Response:", result)
+                    if len(result['candidates'][0]['content']['parts'][0]['text']) < 50:
+                        column_name = result['candidates'][0]['content']['parts'][0]['text']
                     else:
-                        if re.findall(r"`(.*?)`", result['choices'][0]['message']['content']):
-                            column_name = re.findall(r"`(.*?)`", result['choices'][0]['message']['content'])[0]
-                        elif re.findall(r"'(.*?)'", result['response']):
-                            column_name = re.findall(r"'(.*?)'", result['choices'][0]['message']['content'])[0]
-                        elif re.findall(r'"(.*?)"', result['response']):
-                            column_name = re.findall(r'"(.*?)"', result['choices'][0]['message']['content'])[0]
+                        if re.findall(r"`(.*?)`", result['candidates'][0]['content']['parts'][0]['text']):
+                            column_name = re.findall(r"`(.*?)`", result['candidates'][0]['content']['parts'][0]['text'])
+                        elif re.findall(r"'(.*?)'", result['candidates'][0]['content']['parts'][0]['text']):
+                            column_name = re.findall(r"'(.*?)'", result['candidates'][0]['content']['parts'][0]['text'])
+                        elif re.findall(r'"(.*?)"', result['candidates'][0]['content']['parts'][0]['text']):
+                            column_name = re.findall(r'"(.*?)"', result['candidates'][0]['content']['parts'][0]['text'])
                     return column_name
                 else:
                     return "unknow_name"
@@ -239,59 +251,5 @@ def analyze(chunk, column_type):
     return chunk
     # new_df = rearange(df)
 
-def rearange(df):
-    prompt = f"""
-    """
-    payload = {
-        'model' : 'llama3.1:70b',
-        'prompt' : prompt,
-        'stream' : False
-    }
-    res = requests.post(OLLAMA_SERVER_URL, json=payload)
-    if res.status_code == 200:
-        str = res.json()['response']
-        # str = str.split('\n')[0]
-        return str
-    else:
-        return res.raise_for_status()
 
-def detect_outlier(column_data):
-    prompt = f"""
-            You will be provided with dataset delimited by triple backticks.
-            <task>
-            1. Analyze the dataset and understand the basic data format and meaning.
-            2. Select values ​​that differ significantly from the general data format and meaning.
-                #For example
-                -If the numeric value dataset contains the text, select the text.
-                -If the text dataset contains numeric values, select the numeric values.
-                -If the date dataset contains the text or numeric values, select the text or numeric values.
-                -If there is a value that is particularly larger or smaller than the basic numeric dataset in the numeric value data, select that value.
-                -If the text data contains dataset that is the same as the hash value, select the hash value.
-                -Ignore empty or null characters and do not include them in the selection.
-            3. Count the positions of the selected values ​​in the dataset. The start value is 0.
-            4. Make a list of these count number.
-                -If an error occurs or it is difficult to select a value, return an empty list.
-                -Do not include descriptions or any additional text, only the make count list.
-            </task>
 
-            <Dataset>
-            ```{column_data}```
-            </Dataset>
-
-            <output>            
-            Only output in this format:[1, 20,  21, 30]            
-            </output>
-        """
-
-    payload = {
-            'model' : 'llama3.1:70b',
-            'prompt' : prompt,
-            'stream' : False
-        }
-    res = requests.post(OLLAMA_SERVER_URL, json=payload)
-    if res.status_code == 200:
-        str = res.json()['response']
-        # str = str.split('\n')[0]
-        return str
-    else:
-        return res.raise_for_status()

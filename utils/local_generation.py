@@ -3,13 +3,11 @@ import re, aiohttp
 from utils.config import general_names
 import warnings
 import pandas as pd
-
-url = "https://os-api.com/api/openai/chat/completions"
-api_key = "gbKRLDQp3cVhAw"
-headers = {
-    "Content-Type": "application/json",
-    "Authorization": f"Bearer {api_key}"
-}
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+model_name = "gpt2"
+model = GPT2LMHeadModel.from_pretrained(model_name)  # Use GPT2LMHeadModel for generation
+tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+model.eval()
 
 # Pre make name by using regular expression
 INT32_MIN = -(2**31)
@@ -147,8 +145,8 @@ async def generate_name(df):
         column_data = df[col].tolist()
         new_name = await make_name(column_data)
         count = sum(new_name in item for item in column_names)        
-        if new_name not in general_names:            
-            general_names.append(new_name)
+        # if new_name not in general_names:            
+        #     general_names.append(new_name)
         if count:
             column_names.append(f"{new_name}_{count}")
         else:
@@ -178,35 +176,14 @@ async def make_name(column_data):
         Do not include descriptions or any additional text, only the column names.
         Return only one column name. 
         """
-        data = {
-                "model": "gpt-4",  # Use the model you need
-                "messages": [
-                    {"role": "system", "content": "You are a creative assistant."},
-                    {"role": "user", "content": prompt}
-                ],
-                "max_tokens": 200,  # Adjust based on the desired response length
-                "temperature": 0.8  # Increase for more creative responses
-            }
+
+        input_ids = tokenizer(prompt, return_tensors="pt").input_ids
+        # Generate text
+        outputs = model.generate(input_ids, max_length=50)
+        generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        print(generated_text)
         
-        # Using aiohttp for asynchronous HTTP requests
         
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=data) as response:
-                if response.status == 200:                    
-                    result = await response.json()
-                    if len(result['choices'][0]['message']['content']) < 50:
-                        column_name = result['choices'][0]['message']['content']
-                    else:
-                        if re.findall(r"`(.*?)`", result['choices'][0]['message']['content']):
-                            column_name = re.findall(r"`(.*?)`", result['choices'][0]['message']['content'])[0]
-                        elif re.findall(r"'(.*?)'", result['response']):
-                            column_name = re.findall(r"'(.*?)'", result['choices'][0]['message']['content'])[0]
-                        elif re.findall(r'"(.*?)"', result['response']):
-                            column_name = re.findall(r'"(.*?)"', result['choices'][0]['message']['content'])[0]
-                    return column_name
-                else:
-                    return "unknow_name"
-                    # Raise an exception if the status code indicates an error
                     
         
 def analyze(chunk, column_type):
